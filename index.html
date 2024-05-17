@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>procon</title>
+<style>
+    .table-container {
+        display: flex;
+        flex-direction: column; 
+        align-items: center; 
+    }
+    table {
+        border-collapse: collapse;
+        width: auto; 
+        margin-bottom: 20px; 
+    }
+    td {
+        border: 1px solid #dddddd;
+        text-align: center;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+    }
+    caption {
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+    #slider-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+</style>
+</head>
+<body>
+
+<input type="file" id="fileInput" accept=".json" multiple>
+<p>※jsonファイルを再アップロードする場合、リロード(ctrl+R)してからアップロードしてください。</p>
+<div id="slider-container">
+    <button id="prevButton">Previous</button>
+    <input type="range" id="slider" min="0" max="0" value="0" step="1">
+    <button id="nextButton">Next</button>
+    <button id="playButton">Play</button>
+    <input type="range" id="speedSlider" min="1" max="10" value="5" step="1">
+    <span id="speedValue">Speed: 5x</span>
+</div>
+<div class="table-container" id="tableContainer">
+</div>
+
+<script>
+let tables = [];
+let currentTableIndex = 0;
+let playInterval = null;
+
+document.getElementById("fileInput").addEventListener("change", function(event) {
+    const files = event.target.files;
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        reader.onload = function() {
+            const jsonData = JSON.parse(reader.result);
+            createTables(jsonData);
+            updateSlider();
+            showTable(0);
+        }
+        reader.readAsText(file);
+    }
+});
+
+function createTables(jsonData) {
+    const tableContainer = document.getElementById("tableContainer");
+    tableContainer.innerHTML = ''; // Clear existing tables
+    tables = [];
+    const board = jsonData.board;
+    
+    for (const key in board) {
+        if (board.hasOwnProperty(key) && key !== 'width' && key !== 'height') {
+            const table = createTable(board[key], key);
+            tables.push(table);
+        }
+    }
+}
+
+function createTable(boardData, tableName) {
+    const table = document.createElement("table");
+    table.style.display = "none"; // Initially hide all tables
+    const caption = table.createCaption();
+    caption.textContent = tableName;
+    const width = boardData[0].length;
+    const height = boardData.length;
+    const start = boardData;
+
+    for (let i = 0; i < height; i++) {
+        const row = table.insertRow();
+        for (let j = 0; j < width; j++) {
+            const cell = row.insertCell();
+            const colorCode = getColorCode(start[i].charAt(j));
+            cell.style.backgroundColor = colorCode;
+            cell.textContent = start[i].charAt(j);
+        }
+    }
+
+    document.getElementById("tableContainer").appendChild(table);
+    return table;
+}
+
+function getColorCode(color) {
+    switch(color) {
+        case "0":
+            return "#ff1100"; 
+        case "1":
+            return "#fff200"; 
+        case "2":
+            return "#44ff00"; 
+        case "3":
+            return "#0044ff";
+        default:
+            return "#f200ff"; 
+    }
+}
+
+function updateSlider() {
+    const slider = document.getElementById("slider");
+    slider.max = tables.length - 1;
+}
+
+document.getElementById("slider").addEventListener("input", function(event) {
+    const index = parseInt(event.target.value);
+    showTable(index);
+});
+
+function showTable(index) {
+    tables.forEach((table, i) => {
+        table.style.display = i === index ? "table" : "none";
+    });
+    currentTableIndex = index;
+}
+
+document.getElementById("prevButton").addEventListener("click", function() {
+    currentTableIndex--;
+    if (currentTableIndex < 0) {
+        currentTableIndex = tables.length - 1;
+    }
+    showTable(currentTableIndex);
+});
+
+document.getElementById("nextButton").addEventListener("click", function() {
+    currentTableIndex++;
+    if (currentTableIndex >= tables.length) {
+        currentTableIndex = 0;
+    }
+    showTable(currentTableIndex);
+});
+
+document.getElementById("playButton").addEventListener("click", function() {
+    if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+        document.getElementById("playButton").textContent = "Play";
+    } else {
+        const speed = parseInt(document.getElementById("speedSlider").value);
+        playInterval = setInterval(playNextTable, 1000 / speed);
+        document.getElementById("playButton").textContent = "Pause";
+    }
+});
+
+function playNextTable() {
+    currentTableIndex++;
+    if (currentTableIndex >= tables.length) {
+        currentTableIndex = 0;
+    }
+    showTable(currentTableIndex);
+}
+
+document.getElementById("speedSlider").addEventListener("input", function(event) {
+    const speed = parseInt(event.target.value);
+    clearInterval(playInterval);
+    playInterval = setInterval(playNextTable, 1000 / speed);
+    document.getElementById("speedValue").textContent = "Speed: " + speed + "x";
+});
+</script>
+
+</body>
+</html>
